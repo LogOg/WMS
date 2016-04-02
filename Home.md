@@ -1,4 +1,4 @@
-# WMS data structure
+# Catalogue data structure - to be edited (copied form old WMS structure)
 There three levels of catalogue for a product 'often used':
 
 ### Supplier
