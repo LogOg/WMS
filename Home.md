@@ -1,6 +1,135 @@
-Note erial numbers need to go on the ASN
+Note serial numbers need to go on the ASN
 
-# Catalogue data structure - to be edited (copied form old WMS structure)
+### Supplier
+Table - **suppliers**
+* supplier_id
+* name
+* description
+* region - for information purposes
+* country - for information purposes
+* overreceive_percentage - this is the percentage over what was ordered on the PO that the WH is allowed to receive and will round down. E.g. if set to 10% and order 100 then can receive 110 if the supplier over delivers. If order 1 then rounds down to 1 and can only receive 1. This overrides setting made at global level and Organisation level.
+
+
+### Variations
+Table - **variations**
+* variation_id
+* name
+* min_days_to_expiry - if populated then is an expiry product and WMS will require entering expiry date on receiving and will not allow receiving item if the expiry date is less than this nr of days from receive date. Product will also have all expiry functionality in WH like FEFO (first in first out) as well as generating task for uplifting soon to expire product (days to expire configurable). This attribute sits here because so much in the system relies on this field so cannot be configurable and sit on variation_types table
+
+### WH Variation Types
+Will be populated with attributes driving the following WH behaviour. For example for Variations having the variation_type_id for 'POPUP_RECEIVING' a popup will come up when receiving the item with information for the user receiving, i.e. for books to put the book into a protective plastic sleeve. There are other Variation Types which will determine Locations for which Variation can be put away. For a Variation with the variation_type_id with the 'name' of 'HAZARDOUS' with the 'value' as 1 (true), the item will be directed toward Locations only which have that variation_type_id in the location_type_variation_type table for the Location Type for the Location - more on this in sections below. Variation Types will drive the following types of behaviour.
+* determine the zone for put away - i.e. put away to high value and/or hazardous
+* displaying a pop up message at receiving or packing 
+* ability to create task splits based on these variation types (i.e. put away to a specific zone)
+* determine equipment type for receiving and/or picking
+* determine which pick wave type the variation (item) will be on
+
+Table - **variation_types**
+* variation_type_id
+* name - for example 'POPUP_RECEIVING'/'HIGH_VALUE'/'HAZARDOUS'/'FAST_MOVER'/'FIXED'/'GENERAL' (Note 'GENERAL' is for CHAOTIC good stock put away and 'FIXED' is for one Supplier Variation for a location only (or Variation level if the CO_LOCATE_SUPPLIER_VARIATIONS is set to 1 (i.e. true)(will not store Variation))
+* value - For 'name' 'POPUP_RECEIVING' could have this value as 'Requires book sleeve' (i.e. message to popup on receiving this Variation for book) - rest examples above are boolean with value of 0 (i.e. false) or 1 (i.e. true)
+ 
+## Variation / Variation Types
+Table - **variation_variation_types**
+This is the link table between variation_types table and the variations table (which has a variation_id)
+* variation_id
+* variation_type_id
+
+### Pack Sizes
+Initially this would by default hold the following options (SINGLE;INNER;OUTER;TI;PALLET). On variation_pack_barcodes below, the quantity for each option can be stored with volumetrics (W/D/H/weight/volume) with one row in variation_pack_barcodes being required for a variation_id. As an example for Coke cans:
+SINGLE - one can of Coke
+INNER - one six pack of Coke
+OUTER - one case of Coke (24 cans of Coke)
+TI - six cases of coke to a layer on a pallet (6x24 cans of Coke)
+PALLET - ten layers (this is known as the HI but not stored) of TI per pallet (6x24x10 cans of coke)
+
+Table - **pack_sizes**
+* pack_size_id
+* name
+
+### Variation Pack Barcodes
+For a Variation (i.e. product) it is possible to have a barcode and volumetrics for each pack size (above) of the Variation. These could have the following options (SINGLE;INNER;OUTER;TI;PALLET). On validation on population of Item Master data there must be at least one variation_pack_barcodes row for a Variation (for e-commerce generally SINGLE at least). Populating a variation_pack_barcodes row for a variation_id with a pack_size_id for 'PALLET', for example, would allow scanning the pallet barcode on receiving and the received quantity would automatically be that for the pallet. Put away could also direct the pallet to a suitable zone for pallet storage for that Variations attributes (i.e. is_hazardous). Receiving an OUTER would do something similar but to a location that could store a case of Coke for example which is very different from storing the pallet 120x100x120cm).
+It is configurable as to whether the WMS can have more than one barcode_id with the same barcode and variation_id.
+
+Table - **variation_pack_barcodes**
+* variation_pack_barcode_id
+* variation_id
+* pack_size_id
+* barcode
+* height_mm - I have added the dimension to the name because we have already had a dimensioning mess in TAL because of confusion on this point so better to include in the name of the variables so super transparent (integer)
+* width_mm
+* depth_mm
+* weight_kg (decimal)
+
+### Organisations
+Holds the organisations held in the WH. This will include marketplace sellers as well as other companies who's stock is held and shipped through the WH. This means that supplier_variations for MP sellers and other organisations held in the WH will be held under the same Variation as those for the 'main' organisation. If he configuration CAN_SHARE_BARCODES is set to 1 (true) then all organisations can share the same set of barcodes. This means that it is not neccessary to re-barcode for other organisations - this is huge because no-one including TAL and Amazon have this right. The only way this can work is that the WMS knows who owns which stock and this is made possible because the WMS will not allow collocating supplier_variations with the same variation_d which do no share the same organisation_id **and** supplier_variation_id.
+
+Table - **organisations**
+* organisation_id
+* name
+* description
+* over_receive_percentage - this is the percentage over what was ordered on the PO that the WH is allowed to receive and will round down. E.g. if set to 10% and order 100 then can receive 110 if the supplier over delivers. If order 1 then rounds down to 1 and can only receive 1. This overrides setting made at global level.
+
+### Supplier Variations
+This is the Variation for a specific supplier and organisation so will have the supplier_id, organisation_id as well as the variation_id of parent supplier agnostic variation.
+
+Table - **supplier_variations**
+* supplier_variation_id
+* name
+* description
+* variation_id
+* supplier_id
+* organisation_id
+
+### Purchase Order Types
+Note purchase orders are always inbound into the WH. These would be (i.e. name) PO/IBT/CUST_RETURN/SUPPL_RETURN - possible to configure more types.
+
+Table - **po_types**
+* po_type_id
+* name
+* description - description of the above
+
+### Purchase Orders (PO)
+A purchase order for inbound supplier_variation items from a supplier into an organisation into a warehouse.
+
+Table - **purchase_orders**
+* po_id
+* warehouse_id - i.e. the warehouse to receive the PO
+* supplier_id
+* organisation_id
+* po_type_id
+* ship_date - when supplier will ship to the WH  
+* receive date - date when the WH will receive PO
+* return_ref_nr - used in conjunction with po_type_id to hold either the customer return nr or the supplier return nr for an item returned back to the WH 
+* sending_warehouse_id - populated for IBT po_type
+* outbound_order_nr - this is populated only for the IBT po_type and is the outbound order type id of the related outbound IBT
+* receive_instruction - a popup will come up displaying this message on receiving PO if this is populated - i.e. special instructions for receiving
+
+### Purchase Order Details
+Table - **purchase_order_details**
+* po_detail_id
+* po_id
+* supplier_variation_id - note this is a combination of variation, supplier and organisation
+* ordered_quantity
+* cost_price
+
+### Advanced Shipping Notifications (ASN)
+A supplier will send an ASN against a PO and it indicates an updated ETA as well as what can be expected on the ASN. A PO might be delivered in more than one load by the Supplier and the ASN is what will be on that load with its ETA date/time. There can not be items on an ASN which are not on the original PO and there should not be more items (qty) in total across the ASN's than on the original PO. Whether to allow over receiving, and if so to what percentage, is a configuration in the WMS which can be set as default on Global Configurations or set for an Organisation or at a Supplier level with Supplier configuration overriding Organisation and Organisation overriding Global.
+
+Table - asns
+* asn_id
+* po_detail_id
+* quantity - quantity to expect - sum of qty's on all ASN's for PO for this Supplier Variation should not be more than PO qty - could validate on the ASN API from ERP or Supplier
+* updated_eta_date - this is an updated delivery date from supplier, ASN is generated when they have packed the stock in the sending Supplier WH and are about to ship out so the qty and ETA will be more accurate than for the PO
+* is_final - this field can be used if the supplier will not deliver everything on a PO. If not used then customer will default to false and receiving to full quantity will close PO or will need to be manually closed on the PO screen. 
+
+
+
+
+
+
+
+# OLD Catalogue data structure - to be edited (copied form old WMS structure)
 There three levels of catalogue for a product 'often used':
 
 ### Supplier
@@ -169,5 +298,4 @@ On receiving this message with the 'Create' messageType validate that the barcod
 ## Item Attributes
 The important thing to remember with Item Attributes is that an item can both be a hazardous item which is also an expiry item, i.e. batteries. In addition having an Item Attribute will drive behaviour in the WH, i.e. you will not allow receiving items which will expire in less than the 'minDaysToExpiry'
 Note on items table would have idItemAttribute
-
 
