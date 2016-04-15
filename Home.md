@@ -10,6 +10,24 @@ Table - **suppliers**
 * overreceive_percentage - this is the percentage over what was ordered on the PO that the WH is allowed to receive and will round down. E.g. if set to 10% and order 100 then can receive 110 if the supplier over delivers. If order 1 then rounds down to 1 and can only receive 1. This overrides setting made at global level and Organisation level.
 
 
+### Items
+This is product without size or colour, i.e. Asics Gel or Iphone 5 - barcode/s lives at this level (parent of Item Line).
+Table - **items**
+* item_id
+* item_name
+* item_description
+* active    - to permanenly inactivate an item line, all item_variation and supplier_item_variation children are inactive when parent item set inactive
+* published    - to temporarily disable an item line, all item_variation and supplier_item_variation children are temporarily disabled when parent item set disabled
+* min_days_to_expire_receive    - less than this number of day till expiry (i.e. 180 days) and the system will not allow receiving. Also if populated will require entering the expiry date at receiving and will then track that in WH. Will not allow co-locating same supplier_variation item in WH with different expiry dates (for his to work putaway will need to direct same supplier_variation item with same expiry date to location where there is space and where there is already that item for the same expiry date). This captured date will drive FEFO (first expire is first out) picking as well as tracking stock about to expire or has expired in WH. 
+* min_days_to_expire_pick    - Will not allow picking stock within a certain time of expiry (i.e 10 days). Could also be used to trigger picking out stock past this number days to expire
+* bulky_level    - 0 is not bulky, can then have levels 1 through ? to indicate how bulky. A weber braai will not go through a dimensioning/weighing scanner at packing but does not need a fork lift for example. A double door fridge will need a special storage area and a forklift. These indications of the size or weight of items will be imporant in directing their flow within the WH i.t.o. storage/packing/equipment types/etc.
+* hazardous_level - 0 is not hazardous, 1 slightly hazardous (i.e. batteries may not fly), 2 properly hazardous suh as gas cylinders, pool chemicals, fire lighters etc which require special storage because are dangerous/flamable/cannot be kept near food/etc. Very important for directing storage locations, equipment types and handling for safety, spoilage of other product like food which cannot be stored near chlorine as well as delivery/transport options
+* is_parent_assortment    - this is a parent assortment item, not populated for children assortment items. This will drive receiving of these items in the WH
+* parent_assortment_item_id    - if is a child of a paren assortment item then populated.This will drive receiving of these items in the WH
+* high_value   - 0 is no, 1 is yes and will need toe stored in the high value cage
+* serialised    - 0 is no, 1 is yes, i.e. will require serial number capture at receiving so can track which serial nr belongs to which supplier. Will also need to track which serial number ships so know which serial nr customer gets so if they do a return can nesure have returned the item sold.
+
+
 ### Variations
 Table - **variations**
 * variation_id
@@ -123,6 +141,65 @@ Table - asns
 * updated_eta_date - this is an updated delivery date from supplier, ASN is generated when they have packed the stock in the sending Supplier WH and are about to ship out so the qty and ETA will be more accurate than for the PO
 * is_final - this field can be used if the supplier will not deliver everything on a PO. If not used then customer will default to false and receiving to full quantity will close PO or will need to be manually closed on the PO screen. 
 
+### Outbound Order Types
+Outbound order types will include EXPRESS/NORMAL/SUPPLIER_RETURN/REPLACEMENT/IBT/COLLECT - additional options can be configured.
+
+Table - **outbound_order_types**
+* outbound_order_type_id
+* name
+* description
+
+### Outbound Orders
+An outbound order is for a warehouse and an organisation but could be across suppliers and supplier_variations.
+
+Table - **customer_orders**
+* customer_order_id
+* warehouse_id - the warehouse from which the outbound order is shipping
+* organisation_id
+* outbound_order_type_id
+* inbound_po_nr - for an IBT this is the related inbound PO nr
+* ship_date - the date on which the order must ship
+* destination_warehouse_id - in the case of an IBT this is the warehouse to which the IBT (inter branch transfer) is going - NULL if not an IBT order type
+* cust_name - these fields are for printing shipping labels and packing slips
+* cust_address_1
+* cust_address_2
+* cust_address_3
+* cust_zip_postal_code
+* cust_country
+* return_ref_nr - this is the customer return reference nr to be populated only for replacement or return of repaired item
+* cust_contact_nr
+* cust_email
+* courier - this is the courier to be printed on the shipping label. Will be determined by the ERP syste based on if the customer has selected an EXPRESS order type option (it should be possible to add multiple shipping options to outbound_order_types (currently EXPRESS and NORMAL only)) 
+* pack_instruction - comes up at packing as a popup special instruction (example add an insert pamphlet) if this is populated
+* ship_cost
+* delivery_instruction - for courier in the event that this needs to be printed
+
+### Outbound Order Details
+Table - **outbound_order_details**
+* outbound_order_detail_id
+* supplier_variation_id
+* quantity
+* cost_price_incl_vat - for reporting
+* sell_price_ex_vat - each for printing invoice or packing slip
+* sell_price_incl_vat - each
+
+### Warehouse
+Note these are the WH's of the WMS not the supplier. 
+Note that supplier_warehouses (holds lead time for supplier to a WMS warehouse) and supplier_variation_warehouses (holds lead time for a specific supplier variation to a WMS warehouse (overrides lead time held at supplier level)) need to move out of the WMS DB and into the Catalogue DB. This is because the lead time (expected time to deliver after order is placed) on PO is calculated in the ERP system and the PO is sent to the WMS with the ETA date already calculated.
+Table - **warehouses**
+* warehouse_id
+* name
+* description
+* geo_lat    - latitude
+* long       - longitude
+* address_1
+* address_2
+* address_3
+* city
+* ziporpostal_code
+* stateprovincecounty
+* countryid
+
 
 
 
@@ -132,125 +209,12 @@ Table - asns
 # OLD Catalogue data structure - to be edited (copied form old WMS structure)
 There three levels of catalogue for a product 'often used':
 
-### Supplier
-Table - **supplier**
-* supplier_id
-* supplier_name
-* supplier_description
-* supplier_lead_time_hours
- 
-### Field Type
-Table - **field_type**
-* field_type_id
-* field_type_name    - this would be ([0:int],[1:string],[2:boolean],[3,decimal])
 
-### Items
-This is product without size or colour, i.e. Asics Gel or Iphone 5 - barcode/s lives at this level (parent of Item Line).
-Table - **items**
-* item_id
-* item_name
-* item_description
-* active    - to permanenly inactivate an item line, all item_variation and supplier_item_variation children are inactive when parent item set inactive
-* published    - to temporarily disable an item line, all item_variation and supplier_item_variation children are temporarily disabled when parent item set disabled
-* min_days_to_expire_receive    - less than this number of day till expiry (i.e. 180 days) and the system will not allow receiving. Also if populated will require entering the expiry date at receiving and will then track that in WH. Will not allow co-locating same supplier_variation item in WH with different expiry dates (for his to work putaway will need to direct same supplier_variation item with same expiry date to location where there is space and where there is already that item for the same expiry date). This captured date will drive FEFO (first expire is first out) picking as well as tracking stock about to expire or has expired in WH. 
-* min_days_to_expire_pick    - Will not allow picking stock within a certain time of expiry (i.e 10 days). Could also be used to trigger picking out stock past this number days to expire
-* bulky_level    - 0 is not bulky, can then have levels 1 through ? to indicate how bulky. A weber braai will not go through a dimensioning/weighing scanner at packing but does not need a fork lift for example. A double door fridge will need a special storage area and a forklift. These indications of the size or weight of items will be imporant in directing their flow within the WH i.t.o. storage/packing/equipment types/etc.
-* hazardous_level - 0 is not hazardous, 1 slightly hazardous (i.e. batteries may not fly), 2 properly hazardous suh as gas cylinders, pool chemicals, fire lighters etc which require special storage because are dangerous/flamable/cannot be kept near food/etc. Very important for directing storage locations, equipment types and handling for safety, spoilage of other product like food which cannot be stored near chlorine as well as delivery/transport options
-* is_parent_assortment    - this is a parent assortment item, not populated for children assortment items. This will drive receiving of these items in the WH
-* parent_assortment_item_id    - if is a child of a paren assortment item then populated.This will drive receiving of these items in the WH
-* high_value   - 0 is no, 1 is yes and will need toe stored in the high value cage
-* serialised    - 0 is no, 1 is yes, i.e. will require serial number capture at receiving so can track which serial nr belongs to which supplier. Will also need to track which serial number ships so know which serial nr customer gets so if they do a return can nesure have returned the item sold.
 
-### Item Barcodes
-Table - **barcodes**
-* barcode_id
-* barcode
-* item_id
 
-### Item Variations
-This is the product with size and colour but without any pricing, lead time or supplier information, Asics Gel Green& Black size 9 or Iphone 5 Black 6GB (child of Product Line and parent of Item). The variation is driven by the four group value fields group_1_value, group_2_value, group_3_value and group_4_value (see description below)
-Table - **variations**
-* item_variation_id
-* item_variation_name
-* item_variation_description
-* group_1_value    
-* => this is required if there is more than one variation for an item
-* => for Iphone 6 this might be the variations of storage capacity, i.e. 8 GB, 16GB, 32 GB.
-* => the values stored against the group (i.e. group 1) will be displayed together in a group selection on the site.
-* => if there is only one group with values then the selection made will determine which variation is selected.
-* => there is no reference to this value in any other table and although this might not be best practises it is a good idea for the following reasons
-* ==> if someone changed black to white in the reference table it would affect all products referencing that value and customers expecting black would get white items. One might ask who would do this, Jackie will explain
-* ==> it would be possible to add validation that if any variation is referencing a variation attribute in an external attributes table that it cannot be deleted. The converse will not be the case so that if an attribute is no longer used it will not be deleted. As such this table will grow and where you have hundreds of thousands of products, where you have churn on those where some fall out and new ones replace them, it becomes unmanageable.
-* ==> with so many values in this external table making selections becomes problematic, especially for weight/volume attributes where there are so many variations (i.e. 1l 1 litre, 1liter, 1litre, 1 liter, 1  liter, 1000ml, 1000 ml, 1 000ml, 1 000 ml, 1000 milliliters, and so it goes on)
-* ==> this would put a lot of uneccessary load on the DB where you have the huge varariations table referencing a huge table storing links the attributes table and then of course to the attributes table. It also makes queries more complex and is another point of failure. If someone does something stupid (they will) on one variation then that one breaks. If someone does something stupid on a reference attribute table you suddenly have chaos and it is not always self evident where this problem came from without serious investigation. This works where you have clever business analysts sitting doing this all day but not for the model where you want minimum services interaction with the customers we sell the solution to
-* => there is no name for the group on the site (ecomm site), i.e. we do not try store that a group is for GB for the Iphone 6, that is self evident and can be explained further in the descriptionsif there is confusion
-* => if this group (1) is populated for any variation for the item then validation will force entering a group_1_value for all variations. This is the only tricky part and will have to be done as a popup which pops up on this validation fail (i.e. one add a second variation and try to save but do not have a group_1_value). On this validaiton fail all variations are displayed and the user can enter all the group_1_value's
-* group_2_value
-* => this is not required but as soon as is populated for one variation must be populated for all as above. Because this is not required, on a validation failure where the popup comes up (as described for group_1_value) this would allow for adding values for all the variations or clearing the group_2_value which caused the validation fail.
-* => will form the second selection group for the item so in the case of the Iphone 6 example above this might hold values of Black, White and Gold. This would mean that there would be 9 variations for each combination of 8/16/32GB and Black/White/Gold with two selection boxes on the site for each of the groups. A selection would be required for both and that selection driving the variation displayed along with its price, availability, picture and description
-* group_3_value - see group_2_value
-* group_4_value - see group_2_value
-* item_id
 
-### Supplier Item Variations
-This is the item as per the parent Item Variation but for a specific supplier so will have  pricing, lead time and supplier information (child of Item Variation).
-Table - **supplier_variations**
-* supplier_variation_id
-* supplier_variation_name
-* supplier_variation_description
-* variation_id
-* supplier_id
-* default_lead_time_days    - note that this will override 'default_lead_time_days' set on supplier table
-* default_lead_time_hours    - note that this will override 'default_lead_time_hours' set on supplier table
 
-### Warehouse
-Table - **warehouse**
-* warehouse_id
-* warehouse_name
-* warehouse_description
-* warehouse_geo_lat    - latitude
-* warehouse_long       - longitude
-* warehouse_address_1
-* warehouse_address_2
-* warehouse_address_3
-* warehouse_city
-* warehouse_ziporpostal_code
-* warehouse_stateprovincecounty
-* countryid
 
-## Item Types
-Will be populated with Style/Color/Weight/Size initially
-Table - **item_types**
-* id_item_type
-* item_type_name
-
-In item_types will populate with fields which will drive how the item displays on the site. So if 
-
-## Item / Item Types
-Table - **item_item_types**
-This is the link table between item_types table and items table
-* item_id
-* item_type_id
-* created_at
-* updted_at
-
-## Item Attributes
-
-### Attributes
-Table - **attribute**
-* idAttribute
-* attributeName - i.e. Expires
-
-### ItemAttributes (i.e. hazardous, bulky)
-Table - **item_attribute**
-* item_attribute_id
-* item_id
-* attribute_id
-* valueName - i.e. minDaysToExpiry
-* value - i.e. min nr days to expiry date for which receiving is allowed for expiry products
-* field_type_id   - see field_typetable above, this specifies if field is of type int, boolean, string or decimal
-
-For examples of Attributes see relevant sections, i.e. in the Inbound section will find a section on receiving items which have the 'Expires' or 'Assortment' attribute. It will be discussed how the receiving process is wizard driven for the children of Items which bare these attributes.
 
 ## WH Items
 * Items sent to the WH will have the SupplierItemVariationId and the WH will operate at this level (i.e. at the lowest level above).
@@ -298,4 +262,3 @@ On receiving this message with the 'Create' messageType validate that the barcod
 ## Item Attributes
 The important thing to remember with Item Attributes is that an item can both be a hazardous item which is also an expiry item, i.e. batteries. In addition having an Item Attribute will drive behaviour in the WH, i.e. you will not allow receiving items which will expire in less than the 'minDaysToExpiry'
 Note on items table would have idItemAttribute
-
