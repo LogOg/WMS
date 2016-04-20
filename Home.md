@@ -16,17 +16,12 @@ Table - **items**
 * item_id
 * item_name
 * item_description
-* active    - to permanenly inactivate an item line, all item_variation and supplier_item_variation children are inactive when parent item set inactive
+* active    - to permanently inactivate an item line, all item_variation and supplier_item_variation children are inactive when parent item set inactive
 * published    - to temporarily disable an item line, all item_variation and supplier_item_variation children are temporarily disabled when parent item set disabled
 * min_days_to_expire_receive    - less than this number of day till expiry (i.e. 180 days) and the system will not allow receiving. Also if populated will require entering the expiry date at receiving and will then track that in WH. Will not allow co-locating same supplier_variation item in WH with different expiry dates (for his to work putaway will need to direct same supplier_variation item with same expiry date to location where there is space and where there is already that item for the same expiry date). This captured date will drive FEFO (first expire is first out) picking as well as tracking stock about to expire or has expired in WH. 
 * min_days_to_expire_pick    - Will not allow picking stock within a certain time of expiry (i.e 10 days). Could also be used to trigger picking out stock past this number days to expire
-* bulky_level    - 0 is not bulky, can then have levels 1 through ? to indicate how bulky. A weber braai will not go through a dimensioning/weighing scanner at packing but does not need a fork lift for example. A double door fridge will need a special storage area and a forklift. These indications of the size or weight of items will be imporant in directing their flow within the WH i.t.o. storage/packing/equipment types/etc.
-* hazardous_level - 0 is not hazardous, 1 slightly hazardous (i.e. batteries may not fly), 2 properly hazardous suh as gas cylinders, pool chemicals, fire lighters etc which require special storage because are dangerous/flamable/cannot be kept near food/etc. Very important for directing storage locations, equipment types and handling for safety, spoilage of other product like food which cannot be stored near chlorine as well as delivery/transport options
 * is_parent_assortment    - this is a parent assortment item, not populated for children assortment items. This will drive receiving of these items in the WH
 * parent_assortment_item_id    - if is a child of a paren assortment item then populated.This will drive receiving of these items in the WH
-* high_value   - 0 is no, 1 is yes and will need toe stored in the high value cage
-* serialised    - 0 is no, 1 is yes, i.e. will require serial number capture at receiving so can track which serial nr belongs to which supplier. Will also need to track which serial number ships so know which serial nr customer gets so if they do a return can nesure have returned the item sold.
-
 
 ### Variations
 Table - **variations**
