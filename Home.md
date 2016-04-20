@@ -68,11 +68,12 @@ Table - **variations**
 
 ### Variation Pack Barcodes
 For a Variation it is possible to have a barcode for each pack size (above) of the Variation. These could have the following options (SINGLE;INNER;OUTER;PALLET_LAYER;PALLET). On validation on population of Item Master data there must be at least one variation_pack_barcodes row for each Item Pack Size.
-It is configurable as to whether the a barcode_id (i.e. barcode) can exist for more than one Variation (CAN_SHARE_BARCODES)
+It is configurable as to whether the a barcode_id (i.e. barcode) can exist for more than one Variation.(CAN_SHARE_BARCODES) System to validate that a barcode (barcode_id) cannot exist for two different pack_size_id's for the
 
 Table - **variation_pack_barcodes**
 * variation_pack_barcode_id
 * item_pack_size_id
+* variation_id
 * barcode_id
 
 ### Organisations
