@@ -23,30 +23,18 @@ Table - **items**
 * is_parent_assortment    - this is a parent assortment item, not populated for children assortment items. This will drive receiving of these items in the WH
 * parent_assortment_item_id    - if is a child of a paren assortment item then populated.This will drive receiving of these items in the WH
 
-### Variations
-Table - **variations**
-* variation_id
-* name
-* min_days_to_expiry - if populated then is an expiry product and WMS will require entering expiry date on receiving and will not allow receiving item if the expiry date is less than this nr of days from receive date. Product will also have all expiry functionality in WH like FEFO (first in first out) as well as generating task for uplifting soon to expire product (days to expire configurable). This attribute sits here because so much in the system relies on this field so cannot be configurable and sit on variation_types table
+### WH Item Attributes
+Will be populated with attributes driving the following WH behaviour. Item Attributes will determine Locations for which Variation can be put away. For a Variation with the item_attribute_id with the 'name' of 'HAZARDOUS' the item will be directed toward Locations only which have that variation_type_id in the location_type_item_attribute table for the Location Type for the Location - more on this in sections below. 
 
-### WH Variation Types
-Will be populated with attributes driving the following WH behaviour. For example for Variations having the variation_type_id for 'POPUP_RECEIVING' a popup will come up when receiving the item with information for the user receiving, i.e. for books to put the book into a protective plastic sleeve. There are other Variation Types which will determine Locations for which Variation can be put away. For a Variation with the variation_type_id with the 'name' of 'HAZARDOUS' with the 'value' as 1 (true), the item will be directed toward Locations only which have that variation_type_id in the location_type_variation_type table for the Location Type for the Location - more on this in sections below. Variation Types will drive the following types of behaviour.
-* determine the zone for put away - i.e. put away to high value and/or hazardous
-* displaying a pop up message at receiving or packing 
-* ability to create task splits based on these variation types (i.e. put away to a specific zone)
-* determine equipment type for receiving and/or picking
-* determine which pick wave type the variation (item) will be on
-
-Table - **variation_types**
-* variation_type_id
-* name - for example 'POPUP_RECEIVING'/'HIGH_VALUE'/'HAZARDOUS'/'FAST_MOVER'/'FIXED'/'GENERAL' (Note 'GENERAL' is for CHAOTIC good stock put away and 'FIXED' is for one Supplier Variation for a location only (or Variation level if the CO_LOCATE_SUPPLIER_VARIATIONS is set to 1 (i.e. true)(will not store Variation))
-* value - For 'name' 'POPUP_RECEIVING' could have this value as 'Requires book sleeve' (i.e. message to popup on receiving this Variation for book) - rest examples above are boolean with value of 0 (i.e. false) or 1 (i.e. true)
+Table - **item_attributes**
+* item_attribute_id
+* name - for example 'HIGH_VALUE'/'HAZARDOUS'/'FAST_MOVER'/'FIXED'/'GENERAL' (Note 'GENERAL' is for CHAOTIC good stock put away and 'FIXED' is for one Variation/(Supplier Variation CO_LOCATE_SUPPLIER_VARIATIONS = 0 (false)) for a location only (or Variation level if the CO_LOCATE_SUPPLIER_VARIATIONS is set to 1 (i.e. true)(will not store Variation))
  
-## Variation / Variation Types
-Table - **variation_variation_types**
+## Item/ Item Attributes Types
+Table - **item_item_attributes**
 This is the link table between variation_types table and the variations table (which has a variation_id)
-* variation_id
-* variation_type_id
+* item_id
+* item_attibute_id
 
 ### Pack Sizes
 Initially this would by default hold the following options (SINGLE;INNER;OUTER;TI;PALLET). On variation_pack_barcodes below, the quantity for each option can be stored with volumetrics (W/D/H/weight/volume) with one row in variation_pack_barcodes being required for a variation_id. As an example for Coke cans:
@@ -60,19 +48,32 @@ Table - **pack_sizes**
 * pack_size_id
 * name
 
+### Item Pack Sizes
+For an Item it is possible to have a volumetric for each pack size (above) of the Item. These could have the following options (SINGLE;INNER;OUTER;PALLET_LAYER;PALLET). On validation on population of Item Master data there must be at least one item_pack_size row for a Variation (for e-commerce generally SINGLE at least). Populating a item_pack_size row for an item_id with a pack_size_id for 'PALLET', for example, would allow scanning the pallet barcode (see Variation Pack Barcodes) on receiving and the received quantity would automatically be that for the pallet. Put away could also direct the pallet to a suitable zone for pallet storage for that Items attributes (i.e. HAZARDOUS). Receiving an OUTER would do something similar but to a location that could store a case of Coke for example which is very different from storing the pallet 120x100x120cm).
+
+Table - **item_pack_sizes**
+* item_pack_size_id
+* item_id
+* pack_size_id
+* height_mm - I have added the dimension to the name because we have already had a dimensioning mess in TAL because of confusion on this point so better to include in the name of the variables so super transparent (integer)
+* width_mm
+* length_mm - validation that this is greater or equal or equal to other dims because will be used to determine if an item can fit into a location. The location will also have a length as the maximum variable
+* weight_kg (decimal)
+
+### Variations
+Table - **variations**
+* variation_id
+* name
+* min_days_to_expiry - if populated then is an expiry product and WMS will require entering expiry date on receiving and will not allow receiving item if the expiry date is less than this nr of days from receive date. Product will also have all expiry functionality in WH like FEFO (first in first out) as well as generating task for uplifting soon to expire product (days to expire configurable). This attribute sits here because so much in the system relies on this field so cannot be configurable and sit on variation_types table
+
 ### Variation Pack Barcodes
-For a Variation (i.e. product) it is possible to have a barcode and volumetrics for each pack size (above) of the Variation. These could have the following options (SINGLE;INNER;OUTER;TI;PALLET). On validation on population of Item Master data there must be at least one variation_pack_barcodes row for a Variation (for e-commerce generally SINGLE at least). Populating a variation_pack_barcodes row for a variation_id with a pack_size_id for 'PALLET', for example, would allow scanning the pallet barcode on receiving and the received quantity would automatically be that for the pallet. Put away could also direct the pallet to a suitable zone for pallet storage for that Variations attributes (i.e. is_hazardous). Receiving an OUTER would do something similar but to a location that could store a case of Coke for example which is very different from storing the pallet 120x100x120cm).
-It is configurable as to whether the WMS can have more than one barcode_id with the same barcode and variation_id.
+For a Variation it is possible to have a barcode for each pack size (above) of the Variation. These could have the following options (SINGLE;INNER;OUTER;PALLET_LAYER;PALLET). On validation on population of Item Master data there must be at least one variation_pack_barcodes row for each Item Pack Size.
+It is configurable as to whether the a barcode_id (i.e. barcode) can exist for more than one Variation (CAN_SHARE_BARCODES)
 
 Table - **variation_pack_barcodes**
 * variation_pack_barcode_id
-* variation_id
-* pack_size_id
-* barcode
-* height_mm - I have added the dimension to the name because we have already had a dimensioning mess in TAL because of confusion on this point so better to include in the name of the variables so super transparent (integer)
-* width_mm
-* depth_mm
-* weight_kg (decimal)
+* item_pack_size_id
+* barcode_id
 
 ### Organisations
 Holds the organisations held in the WH. This will include marketplace sellers as well as other companies who's stock is held and shipped through the WH. This means that supplier_variations for MP sellers and other organisations held in the WH will be held under the same Variation as those for the 'main' organisation. If he configuration CAN_SHARE_BARCODES is set to 1 (true) then all organisations can share the same set of barcodes. This means that it is not neccessary to re-barcode for other organisations - this is huge because no-one including TAL and Amazon have this right. The only way this can work is that the WMS knows who owns which stock and this is made possible because the WMS will not allow collocating supplier_variations with the same variation_d which do no share the same organisation_id **and** supplier_variation_id.
