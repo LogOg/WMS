@@ -18,8 +18,6 @@ Table - **items**
 * item_description
 * active    - to permanently inactivate an item line, all item_variant and supplier_item_variant children are inactive when parent item set inactive
 * published    - to temporarily disable an item line, all item_variant and supplier_item_variant children are temporarily disabled when parent item set disabled
-* min_days_to_expire_receive    - less than this number of day till expiry (i.e. 180 days) and the system will not allow receiving. Also if populated will require entering the expiry date at receiving and will then track that in WH. Will not allow co-locating same supplier_variant item in WH with different expiry dates (for his to work putaway will need to direct same supplier_variant item with same expiry date to location where there is space and where there is already that item for the same expiry date). This captured date will drive FEFO (first expire is first out) picking as well as tracking stock about to expire or has expired in WH. 
-* min_days_to_expire_pick    - Will not allow picking stock within a certain time of expiry (i.e 10 days). Could also be used to trigger picking out stock past this number days to expire. If min_days_to_expire_receive is set so must this and vice versa and validate cannot be greater than min_days_to_expire_receive.
 
 ### WH Item Attributes
 Will be populated with attributes driving the following WH behaviour. Item Attributes will determine Locations for which variant can be put away. For a variant with the item_attribute_id with the 'name' of 'HAZARDOUS' the item will be directed toward Locations only which have that variant_attribute_id in the location_type_item_attribute table for the Location Type for the Location - more on this in sections below. 
@@ -28,11 +26,16 @@ Table - **item_attributes**
 * item_attribute_id
 * name - for example 'HIGH_VALUE'/'HAZARDOUS'/'FAST_MOVER'/'FIXED'/'GENERAL' (Note 'GENERAL' is for CHAOTIC good stock put away and 'FIXED' is for one Variant/(Supplier Variant CO_LOCATE_SUPPLIER_VARIANTS = 0 (false)) for a location only (or variant level if the CO_LOCATE_SUPPLIER_VARIANTS is set to 1 (i.e. true)(will not store Variant))
  
-## Item/ Item Attributes Types
+## Item/ Item Attributes
 Table - **item_item_attributes**
 This is the link table between variant_attributes table and the variants table (which has a variant_id)
 * item_id
 * item_attibute_id
+* value - where applicable this will be populated - i.e. for min_days_to_expire will be days added to receiving date which must be on or before expiry date of item ben received
+
+### Item Item Attribute values for expiry attributes
+* MIN_DAYS_TO_EXPIRE_RECEIVE    - less than this number of day till expiry (i.e. 180 days) and the system will not allow receiving. Also if populated will require entering the expiry date at receiving and will then track that in WH. Will not allow co-locating same supplier_variant item in WH with different expiry dates (for his to work putaway will need to direct same supplier_variant item with same expiry date to location where there is space and where there is already that item for the same expiry date). This captured date will drive FEFO (first expire is first out) picking as well as tracking stock about to expire or has expired in WH. 
+* MIN_DAYS_TO_EXPIRE_PICK    - Will not allow picking stock within a certain time of expiry (i.e 10 days). Could also be used to trigger picking out stock past this number days to expire. If MIN_DAYS_TO_EXPIRE_RECEIVE is set so must this and vice versa and validate cannot be greater than MIN_DAYS_TO_EXPIRE_RECEIVE.
 
 ### Pack Sizes
 Initially this would by default hold the following options (SINGLE;INNER;OUTER;PALLET_LAYER;PALLET). On variant_pack_barcodes below, the quantity for each option can be stored with volumetrics (W/D/H/weight/volume) with one row in variant_pack_barcodes being required for a variant_id. As an example for Coke cans:
@@ -62,8 +65,6 @@ Table - **item_pack_sizes**
 Table - **variants**
 * variant_id
 * name
-* min_days_to_expiry - if populated then is an expiry product and WMS will require entering expiry date on receiving and will not allow receiving item if the expiry date is less than this nr of days from receive date. Product will also have all expiry functionality in WH like FEFO (first in first out) as well as generating task for uplifting soon to expire product (days to expire configurable). This attribute sits here because so much in the system relies on this field so cannot be configurable and sit on variant_types table
-* is_parent_assortment -  If this flag is true and this will hold the generic supplier parent barcode. NB only one Variant or an Item can hold the 'is_parent_assortment' flag as true.
 
 ### Variant Pack Barcodes
 For a variant it is possible to have a barcode for each pack size (above) of the variant. These could have the following options (SINGLE;INNER;OUTER;PALLET_LAYER;PALLET). On validation on population of Item Master data there must be at least one variant_pack_barcodes row for each Item Pack Size.
